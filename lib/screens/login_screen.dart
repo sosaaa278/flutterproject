@@ -31,11 +31,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     try {
-      final isValid = await authService.login(email, password);
+      final user = await authService.login(email, password);
 
       if (!mounted) return;
-      // Si el login es exitoso, navegamos a HomeScreen. Si no, mostramos un mensaje de error.
-      if (isValid) {
+
+      if (user != null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -45,6 +45,9 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(content: Text('Usuario o contraseña inválidos')),
         );
       }
+
+      if (!mounted) return;
+      // Si el login es exitoso, navegamos a HomeScreen. Si no, mostramos un mensaje de error.
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error de conexión')),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/models/note.dart';
+import '../services/note_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,8 +10,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Note> notes = [];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -19,36 +18,52 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () => _addNote(context),
         child: const Icon(Icons.add),
       ),
-      body: notes.isEmpty
-          ? const Center(
+      body: StreamBuilder<List<Note>>(
+        stream: noteService.getNotes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
               child: Text(
                 'No tienes notas aún. ¡Agrega una!',
                 style: TextStyle(fontSize: 18),
               ),
-            )
-          : ListView.builder(
-              itemCount: notes.length,
-              itemBuilder: (context, index) {
-                final note = notes[index];
-                return ListTile(
-                  title: Text(note.title),
-                  subtitle: note.reminder != null
-                      ? Text(
-                          'Recordatorio: ${note.reminder}',
-                          style: const TextStyle(color: Colors.red),
-                        )
-                      : null,
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      setState(() => notes.removeAt(index));
-                    },
-                  ),
-                );
-              },
-            ),
+            );
+          }
+
+          final notes = snapshot.data!;
+
+          return ListView.builder(
+            itemCount: notes.length,
+            itemBuilder: (context, index) {
+              final note = notes[index];
+
+              return ListTile(
+                title: Text(note.title),
+                subtitle: note.reminder != null
+                    ? Text(
+                        'Recordatorio: ${note.reminder}',
+                        style: const TextStyle(color: Colors.red),
+                      )
+                    : null,
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () {
+                    noteService.deleteNote(note.id);
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
+
+  final noteService = NoteService();
 
   void _addNote(BuildContext context) async {
     final titleController = TextEditingController();
@@ -111,19 +126,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (titleController.text.isEmpty) return;
 
-                setState(() {
-                  notes.add(
-                    Note(
-                      id: DateTime.now().toString(),
-                      title: titleController.text,
-                      content: contentController.text,
-                      reminder: reminder,
-                    ),
-                  );
-                });
+                await noteService.addNote(
+                  titleController.text,
+                  contentController.text,
+                  reminder,
+                );
 
                 Navigator.pop(context);
               },
